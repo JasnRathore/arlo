@@ -1,232 +1,335 @@
+# Arlo 🚀
 
-# Glide 🚀
+> Transform your Go backend into a beautiful desktop application with modern web frontends
 
-> Build desktop apps with Go and your favorite frontend framework
+## Why Arlo?
 
-Glide is a modern toolkit that bridges the gap between Go backend development and your preferred JavaScript/TypeScript frontend. Create beautiful, responsive desktop applications that harness the power of Go's performance and the flexibility of web technologies - all with minimal configuration.
+- **Go-powered backend** for system operations, performance, and reliability
+- **Modern web frontend** using your favorite JavaScript/TypeScript framework
+- **Hot-reload development** for instant feedback during development
+- **Single executable** distribution for easy deployment
 
-## 🔍 Overview
+Whether you're building a data processing tool, system utility, or productivity app, Arlo lets you leverage the best of both worlds without the complexity of traditional desktop frameworks.
 
-Glide creates a seamless development experience by combining:
+## Requirements
 
-- **Go backend** - For system-level operations, performance, and cross-platform compatibility
-- **Web-based frontend** - Using your preferred JS framework (React, Vue, Svelte, etc.)
-- **Streamlined workflow** - Hot-reloading during development, simple bundling for production
+Before getting started, ensure you have these tools installed:
 
-The result is a desktop application that runs natively across operating systems while maintaining a modern, responsive UI.
+### Core Dependencies
+- **Go** (version 1.21 or higher)
+- **Node.js** (version 14 or higher)
+- **Air** - Go hot-reloading tool
 
-## ⚙️ Requirements
+### Package Manager (choose one)
+- npm
+- yarn
+- pnpm
+- bun
+- deno
 
-To use Glide, you need the following tools installed:
+## Installation
 
-- **Go** (version 1.21+)
-- **Node.js** (version 14+)
-- **Air** - For Go hot-reloading
-- One of the following JS package managers:
-  - npm
-  - yarn
-  - pnpm
-  - bun
-  - deno
-
-## 🚀 Getting Started
-
-### Installation
-
-1. Install Glide using Go:
+Install Arlo using Go's package manager:
 
 ```bash
-go install github.com/JasnRathore/glide@latest
+go install github.com/JasnRathore/arlo@latest
 ```
 
-### Create a New Project
+## Getting Started
 
-Initialize a new Glide project with:
+### Creating Your First Project
+
+Initialize a new Arlo project with the interactive setup:
 
 ```bash
-glide init
+arlo init
 ```
 
-This interactive command will:
-1. Prompt you for a project name
-2. Let you select your preferred package manager
-3. Verify dependencies are installed
-4. Create a new Vite project with your selected configuration
-5. Set up the Go backend structure
-6. Initialize configurations for hot-reloading
-7. Install necessary dependencies
+This command will guide you through:
+1. **Project naming** - Choose a descriptive name for your application
+2. **Package manager selection** - Pick your preferred JavaScript package manager
+3. **Dependency verification** - Automatically check that all required tools are installed
+4. **Project scaffolding** - Generate the complete project structure
+5. **Dependency installation** - Set up all necessary packages
 
-## 🏗️ Project Structure
+### Project Structure
 
-After initialization, your project will have the following structure:
+After initialization, your project will be organized as follows:
 
 ```
 your-project/
-├── src/                # Frontend source code (Vite project)
-│   └── glide/          # Glide JS/TS utilities
-│       ├── glide.js    # JavaScript interface
-│       └── glide.ts    # TypeScript interface
-├── src-glide/          # Go backend code
-│   ├── app/            # Application logic
-│   │   └── app.go      # App configuration
-│   ├── main.go         # Entry point for development
-│   ├── build.go        # Build configuration
-│   └── .air.toml       # Hot-reload config
-└── glide.config.json   # Project configuration
+├── src/                    # Frontend source code (Vite project)
+├── src-backend/           # Go backend code
+│   ├── app/               # Application logic
+│   │   └── app.go         # HTTP handlers and business logic
+│   ├── main.go           # Development entry point
+│   ├── build.go          # Production build configuration
+│   └── .air.toml         # Hot-reload configuration
+└── arlo.config.json      # Project configuration
 ```
 
-## 💻 Development Workflow
+## Development Workflow
 
 ### Running in Development Mode
 
-Start your development server with:
+Start your development environment:
 
 ```bash
-glide dev
+arlo dev
 ```
 
-This command:
-1. Starts your frontend dev server (using your chosen package manager)
-2. Runs the Go backend with hot-reloading via Air
-3. Connects the two together for seamless development
+This single command orchestrates your entire development setup:
+- Launches your frontend development server
+- Starts the Go backend with automatic reloading
+- Establishes proxy connections between frontend and backend
+- Watches for file changes and reloads automatically
 
-Any changes to your frontend or Go code will automatically reload.
+Your application will be available at `http://localhost:port` with the frontend proxied through Vite's development server.
 
-### Calling Go Functions from JavaScript
+### Building Go APIs
 
-Glide provides a simple interface to call Go functions from your frontend:
+Create HTTP endpoints in your `app/app.go` file:
+
+```go
+func App() http.Handler {
+    mux := http.NewServeMux()
+    
+    // Simple API endpoint
+    mux.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
+        users := []string{"Alice", "Bob", "Charlie"}
+        json.NewEncoder(w).Encode(users)
+    })
+    
+    // Handle different HTTP methods
+    mux.HandleFunc("/data", func(w http.ResponseWriter, r *http.Request) {
+        switch r.Method {
+        case "GET":
+            // Handle GET request
+        case "POST":
+            // Handle POST request
+        }
+    })
+    
+    return mux
+}
+```
+
+### Frontend Integration
+
+Call your Go APIs from the frontend using standard HTTP requests:
 
 ```javascript
-// Using the JavaScript helper
-import { callWindowFunction } from './glide/glide.js';
+// Fetch data from your Go backend
+async function fetchUsers() {
+    const response = await fetch('/api/users');
+    const users = await response.json();
+    return users;
+}
 
-// Call a Go function registered in app.go
-const greeting = callWindowFunction('Greet', 'World');
-console.log(greeting); // "Hello, World"
+// Post data to your Go backend
+async function saveUser(userData) {
+    const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData)
+    });
+    return response.json();
+}
 ```
 
-TypeScript users can use the strongly-typed interface:
+### TypeScript Support
+
+Arlo includes TypeScript utilities for type-safe development:
 
 ```typescript
-import { callWindowFunction } from './glide/glide.ts';
-
-// Type-safe function calls
-const greeting = callWindowFunction<[string], string>('Greet', 'World');
-console.log(greeting); // "Hello, World"
-```
-
-### Registering Go Functions
-
-To expose Go functions to your frontend, modify the `app.go` file:
-
-```go
-func Greet(name string) string {
-    return fmt.Sprintf("Hello, %s", name)
+// Define your API response types
+interface User {
+    id: number;
+    name: string;
+    email: string;
 }
 
-func App() *glide.App {
-    // App configuration...
-    
-    // Register functions to be called from JavaScript
-    funcs := []interface{}{Greet}
-    app.InvokeHandler(funcs)
-    
-    // ...
+// Type-safe API calls
+async function getUsers(): Promise<User[]> {
+    const response = await fetch('/api/users');
+    return response.json();
 }
 ```
 
-## 📦 Building for Production
+## Production Builds
 
-When you're ready to distribute your application, create a production build:
+### Creating Distribution Builds
+
+When ready to distribute your application:
 
 ```bash
-glide build
+arlo build
 ```
 
-This command:
-1. Builds your frontend for production
-2. Copies the build artifacts to the Go project
-3. Compiles everything into a single executable
-4. Places the executable in the `src-glide/target` directory
+This command performs several optimizations:
+1. **Frontend optimization** - Builds your frontend for production with minification and bundling
+2. **Asset embedding** - Embeds frontend assets directly into the Go binary
+3. **Binary compilation** - Creates a single executable file
+4. **Output organization** - Places the final executable in `src-backend/target/`
 
-The resulting binary includes your frontend assets and can be distributed as a standalone application.
+The resulting binary is completely self-contained and can be distributed without any dependencies.
 
-## 🎛️ Configuration
+### Deployment
 
-### App Configuration
+Your built application is a single executable file that includes:
+- All frontend assets (HTML, CSS, JavaScript)
+- Go backend compiled for the target platform
+- Static file serving capabilities
+- API routing and handlers
 
-Customize your application in `app.go`:
+Simply copy the executable to any compatible system and run it - no installation required.
+
+## Configuration
+
+### Application Settings
+
+Customize your application in the `app.go` file:
 
 ```go
-func App() *glide.App {
-    config := glide.AppConfig{
-        Title:     "MyApp",
-        Width:     800,
-        Height:    600,
-        Debug:     true,
-        AutoFocus: true,
-        IconID:    1,
-        
-        Tray: &glide.TrayConfig{
-            IconID:  2,
-            Title:   "MyApp",
-            Tooltip: "My Awesome App",
-        },
+func setupServer() {
+    port := findAvailablePort(8080)
+    
+    mux := http.NewServeMux()
+    mux.Handle("/api/", http.StripPrefix("/api", App()))
+    
+    log.Printf("Server running on port %d", port)
+    http.ListenAndServe(fmt.Sprintf(":%d", port), mux)
+}
+```
+
+### Environment Variables
+
+Configure your frontend to communicate with the backend using environment variables:
+
+```bash
+# .env file in your frontend
+VITE_API_URL=http://localhost:8080/api
+```
+
+Arlo automatically manages these configurations during development and production builds.
+
+## Examples
+
+### File Processing Application
+
+```go
+// Backend: Handle file uploads and processing
+mux.HandleFunc("/process", func(w http.ResponseWriter, r *http.Request) {
+    file, header, err := r.FormFile("document")
+    if err != nil {
+        http.Error(w, "Failed to read file", http.StatusBadRequest)
+        return
     }
-
-    app := glide.New(config)
-    // ...
-}
-```
-
-## 🛠️ Advanced Usage
-
-### System Tray Integration
-
-Glide makes it easy to add system tray functionality:
-
-```go
-app.AddMenuItem(glide.MenuItem{
-    Title: "Show Window",
-    Handler: func() {
-        app.ShowWindow()
-    },
-})
-
-app.AddMenuItem(glide.MenuItem{
-    Title: "Exit",
-    Handler: func() {
-        app.Exit()
-    },
+    defer file.Close()
+    
+    // Process the file with Go's powerful standard library
+    result := processDocument(file)
+    
+    json.NewEncoder(w).Encode(map[string]interface{}{
+        "filename": header.Filename,
+        "result":   result,
+    })
 })
 ```
 
-### Finding Available Ports
-
-The build system automatically finds available ports for your application:
-
-```go
-port, err := findAvailablePort(8080)
-if err != nil {
-    log.Fatalf("Error finding available port: %v", err)
+```javascript
+// Frontend: Upload and display results
+function uploadFile(file) {
+    const formData = new FormData();
+    formData.append('document', file);
+    
+    return fetch('/api/process', {
+        method: 'POST',
+        body: formData
+    }).then(response => response.json());
 }
 ```
 
-## 📚 Library Dependencies
+### System Information Dashboard
 
-Glide uses the following key libraries:
+```go
+// Backend: System monitoring endpoints
+mux.HandleFunc("/system/stats", func(w http.ResponseWriter, r *http.Request) {
+    stats := map[string]interface{}{
+        "memory":    getMemoryUsage(),
+        "cpu":       getCPUUsage(),
+        "processes": getRunningProcesses(),
+    }
+    json.NewEncoder(w).Encode(stats)
+})
+```
 
-- **Backend**:
-  - [github.com/JasnRathore/glide-lib](https://github.com/JasnRathore/glide-lib) - Core Glide functionality
-  - [github.com/charmbracelet/bubbletea](https://github.com/charmbracelet/bubbletea) - TUI framework for interactive CLI
+```javascript
+// Frontend: Real-time dashboard updates
+setInterval(async () => {
+    const stats = await fetch('/api/system/stats').then(r => r.json());
+    updateDashboard(stats);
+}, 1000);
+```
 
-- **Frontend**:
-  - [Vite](https://vitejs.dev/) - Next generation frontend tooling
+## Advanced Features
 
-## 🤝 Contributing
+### Custom Build Configuration
 
-Contributions are welcome! Feel free to open issues or submit pull requests to improve Glide.
+Modify the build process in `build.go`:
 
----
+```go
+//go:embed dist/*
+var content embed.FS
 
-Happy building with Glide! 🚀
+func serveStatic(w http.ResponseWriter, r *http.Request) {
+    // Custom static file serving logic
+    file := r.URL.Path
+    if file == "/" {
+        file = "/index.html"
+    }
+    
+    data, err := content.ReadFile("dist" + file)
+    if err != nil {
+        http.NotFound(w, r)
+        return
+    }
+    
+    w.Header().Set("Content-Type", detectContentType(file))
+    w.Write(data)
+}
+```
+
+### Hot Reload Configuration
+
+Customize hot reloading in `.air.toml`:
+
+```toml
+[build]
+  cmd = "go build -o ./tmp/main.exe ."
+  bin = "tmp\\main.exe"
+  exclude_dir = ["assets", "tmp", "vendor", "dist"]
+  include_ext = ["go", "html", "css", "js"]
+```
+
+## Architecture Benefits
+
+Arlo's architecture provides several key advantages:
+
+**Performance**: Go's compiled nature and efficient runtime provide excellent performance for system operations, file processing, and concurrent tasks.
+
+**Developer Experience**: Modern JavaScript tooling (Vite, hot-reload, TypeScript) combined with Go's simple deployment model creates an optimal development workflow.
+
+**Cross-Platform**: Go's cross-compilation capabilities mean your application can target Windows, macOS, and Linux from a single codebase.
+
+**Maintainability**: Clear separation between frontend and backend concerns, with well-defined API boundaries, makes applications easier to maintain and extend.
+
+## Conclusion
+
+Arlo represents a modern approach to desktop application development, combining the reliability and performance of Go with the flexibility and rich ecosystem of web technologies. Whether you're building developer tools, productivity applications, or system utilities, Arlo provides the foundation for creating professional desktop applications without the complexity of traditional frameworks.
+
+Ready to build your next desktop application? Start with `arlo init` and experience the power of Go-powered desktop development.
+
+**Get involved**: Found a bug or have a feature request? Contributions are welcome! The simplicity of Arlo's architecture makes it easy to understand and extend.
