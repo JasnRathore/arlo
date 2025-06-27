@@ -1,0 +1,15 @@
+package app
+
+import (
+	"fmt"
+	"net/http"
+)
+
+// App returns an http.Handler (the web app)
+func App() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "Hello from the Go web app!")
+	})
+	return mux
+}

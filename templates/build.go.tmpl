@@ -1,0 +1,93 @@
+//go:build ignore
+package main
+
+import (
+	"embed"
+	"fmt"
+	"log"
+	"net"
+	"net/http"
+	"path"
+	"path/filepath"
+	"strings"
+
+	a "{{.Title}}/app"
+)
+
+//go:embed dist/*
+var content embed.FS
+
+func findAvailablePort(startPort int) (int, error) {
+	for port := startPort; port < 65535; port++ {
+		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		if err == nil {
+			ln.Close()
+			return port, nil
+		}
+	}
+	return 0, fmt.Errorf("could not find an available port")
+}
+
+// serveStatic serves files from the embedded dist folder.
+func serveStatic(w http.ResponseWriter, r *http.Request) {
+	file := r.URL.Path
+	if file == "/" || !hasFileExtension(file) {
+		// Fallback to index.html for SPA routes
+		file = "/index.html"
+	}
+	data, err := content.ReadFile("dist" + file)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", detectContentType(file))
+	w.Write(data)
+}
+
+// hasFileExtension checks if the URL path has a file extension.
+func hasFileExtension(p string) bool {
+	return filepath.Ext(p) != ""
+}
+
+// detectContentType returns the correct Content-Type for common static files.
+func detectContentType(file string) string {
+	switch ext := strings.ToLower(path.Ext(file)); ext {
+	case ".html":
+		return "text/html"
+	case ".css":
+		return "text/css"
+	case ".js":
+		return "application/javascript"
+	case ".json":
+		return "application/json"
+	case ".png":
+		return "image/png"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".svg":
+		return "image/svg+xml"
+	case ".ico":
+		return "image/x-icon"
+	default:
+		return "application/octet-stream"
+	}
+}
+
+func main() {
+	port, err := findAvailablePort(8080)
+	
+	if err != nil {
+		log.Fatalf("Error finding available port: %v", err)
+	}
+
+	// Mount your API handler (from app package) under /api/
+	http.Handle("/api/", http.StripPrefix("/api", a.App()))
+
+	// Serve static frontend (SPA) for all other routes
+	http.HandleFunc("/", serveStatic)
+
+	log.Printf("Production server running at http://localhost:%d", port)
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
+		log.Fatalf("Error starting server: %v", err)
+	}
+}

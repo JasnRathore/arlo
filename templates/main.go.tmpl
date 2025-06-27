@@ -1,0 +1,111 @@
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"log"
+	"net"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
+
+	a "{{.Title}}/app"
+)
+
+// proxyToVite proxies non-API requests to the Vite dev server.
+func proxyToVite(target string) http.Handler {
+	url, err := url.Parse(target)
+	if err != nil {
+		log.Fatalf("Invalid Vite dev server URL: %v", err)
+	}
+	return httputil.NewSingleHostReverseProxy(url)
+}
+
+func findAvailablePort(startPort int) (int, error) {
+	for port := startPort; port < 65535; port++ {
+		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		if err == nil {
+			ln.Close()
+			return port, nil
+		}
+	}
+	return 0, fmt.Errorf("could not find an available port")
+}
+
+// updateOrCreateEnv updates or adds VITE_API_URL in the frontend .env file.
+func updateOrCreateEnv(port int) error {
+	envPath := filepath.Join("..", "src", ".env") // Adjust path as needed
+	newLine := fmt.Sprintf("VITE_API_URL=http://localhost:%d/api", port)
+	var lines []string
+	found := false
+
+	// Try to open the file for reading
+	file, err := os.Open(envPath)
+	if err == nil {
+		defer file.Close()
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := scanner.Text()
+			// Ignore empty lines and comments
+			if strings.HasPrefix(line, "VITE_API_URL=") {
+				lines = append(lines, newLine)
+				found = true
+			} else {
+				lines = append(lines, line)
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			return fmt.Errorf("error reading .env: %w", err)
+		}
+	} else if os.IsNotExist(err) {
+		// File does not exist, will create it
+		lines = append(lines, newLine)
+		found = true
+	} else {
+		return fmt.Errorf("error opening .env: %w", err)
+	}
+
+	if !found {
+		lines = append(lines, newLine)
+	}
+
+	// Write the file (overwrite or create)
+	err = os.WriteFile(envPath, []byte(strings.Join(lines, "\n")+"\n"), 0644)
+	if err != nil {
+		return fmt.Errorf("error writing .env: %w", err)
+	}
+	return nil
+}
+
+func main() {
+	port, err := findAvailablePort(8080)
+	if err != nil {
+		log.Fatalf("Error finding available port: %v", err)
+	}
+
+	// Update the frontend .env file with the backend API URL
+	if err := updateOrCreateEnv(port); err != nil {
+		log.Fatalf("Failed to update frontend .env: %v", err)
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/api/", http.StripPrefix("/api", a.App()))
+
+	// Proxy all other requests to Vite dev server
+	viteProxy := proxyToVite("http://localhost:5173")
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			http.NotFound(w, r)
+			return
+		}
+		viteProxy.ServeHTTP(w, r)
+	})
+
+	log.Printf("Dev server running at http://localhost:%d (API) and proxying to Vite dev server", port)
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), mux); err != nil {
+		log.Fatal(err)
+	}
+}
