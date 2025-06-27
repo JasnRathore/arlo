@@ -37,7 +37,7 @@ func findAvailablePort(startPort int) (int, error) {
 
 // updateOrCreateEnv updates or adds VITE_API_URL in the frontend .env file.
 func updateOrCreateEnv(port int) error {
-	envPath := filepath.Join("..", "src", ".env") // Adjust path as needed
+	envPath := filepath.Join("..", ".env") // Adjust path as needed
 	newLine := fmt.Sprintf("VITE_API_URL=http://localhost:%d/api", port)
 	var lines []string
 	found := false
