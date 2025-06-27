@@ -1,6 +1,6 @@
 # Arlo 🚀
 
-> Transform your Go backend into a beautiful desktop application with modern web frontends
+> Transform your Go backend into a beautiful web application with modern web frontends
 
 ## Why Arlo?
 
@@ -8,8 +8,6 @@
 - **Modern web frontend** using your favorite JavaScript/TypeScript framework
 - **Hot-reload development** for instant feedback during development
 - **Single executable** distribution for easy deployment
-
-Whether you're building a data processing tool, system utility, or productivity app, Arlo lets you leverage the best of both worlds without the complexity of traditional desktop frameworks.
 
 ## Requirements
 
@@ -322,14 +320,11 @@ Arlo's architecture provides several key advantages:
 
 **Developer Experience**: Modern JavaScript tooling (Vite, hot-reload, TypeScript) combined with Go's simple deployment model creates an optimal development workflow.
 
-**Cross-Platform**: Go's cross-compilation capabilities mean your application can target Windows, macOS, and Linux from a single codebase.
-
 **Maintainability**: Clear separation between frontend and backend concerns, with well-defined API boundaries, makes applications easier to maintain and extend.
 
 ## Conclusion
 
-Arlo represents a modern approach to desktop application development, combining the reliability and performance of Go with the flexibility and rich ecosystem of web technologies. Whether you're building developer tools, productivity applications, or system utilities, Arlo provides the foundation for creating professional desktop applications without the complexity of traditional frameworks.
 
-Ready to build your next desktop application? Start with `arlo init` and experience the power of Go-powered desktop development.
+Ready to build your next web application? Start with `arlo init` and experience the power of Go-powered desktop development.
 
 **Get involved**: Found a bug or have a feature request? Contributions are welcome! The simplicity of Arlo's architecture makes it easy to understand and extend.
