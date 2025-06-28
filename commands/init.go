@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 )
 
@@ -241,6 +242,68 @@ func CheckDependencies(jsTool string) bool {
 	return allInstalled
 }
 
+func PatchViteConfig() error {
+	// 1. Detect config file
+	files := []string{"vite.config.ts", "vite.config.js"}
+	var configFile string
+	for _, f := range files {
+		if _, err := os.Stat(f); err == nil {
+			configFile = f
+			break
+		}
+	}
+	if configFile == "" {
+		return fmt.Errorf("No vite.config.js or vite.config.ts found")
+	}
+
+	// 2. Read config file
+	data, err := os.ReadFile(configFile)
+	if err != nil {
+		return err
+	}
+	content := string(data)
+
+	// 3. Check if 'server' already exists
+	serverRegex := regexp.MustCompile(`server\s*:\s*\{`)
+	if serverRegex.MatchString(content) {
+		fmt.Println("Server block already exists. Please update it manually if needed.")
+		return nil
+	}
+
+	// 4. Prepare the server block to insert
+	serverBlock := `server: {
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_URL,
+        changeOrigin: true,
+        secure: false,
+      }
+    }
+  },`
+
+	// 5. Find the plugins property and insert after it, else just after the opening {
+	pluginsRegex := regexp.MustCompile(`(plugins\s*:\s*\[[^\]]*\],?)`)
+	loc := pluginsRegex.FindStringIndex(content)
+	if loc != nil {
+		// Insert after plugins
+		insertPos := loc[1]
+		content = content[:insertPos] + "\n  " + serverBlock + content[insertPos:]
+	} else {
+		// Insert after first opening '{' of defineConfig({
+		defineConfigRegex := regexp.MustCompile(`defineConfig\s*\(\s*\{`)
+		loc2 := defineConfigRegex.FindStringIndex(content)
+		if loc2 != nil {
+			insertPos := loc2[1]
+			content = content[:insertPos] + "\n  " + serverBlock + content[insertPos:]
+		} else {
+			return fmt.Errorf("Could not find defineConfig({ in config file")
+		}
+	}
+
+	// 6. Write back the file
+	return os.WriteFile(configFile, []byte(content), 0644)
+}
+
 func InitProject() {
 	//createing the webapp
 
@@ -262,13 +325,16 @@ func InitProject() {
 	err = os.Chdir(strings.ToLower(project.Name))
 	utils.Check(err)
 
-	//making the glide config file
+	//making the arlo config file
 	jsonData, err := utils.StructToJSON(project)
 	utils.Check(err)
 	err = utils.WriteJSONToFile("arlo.config.json", jsonData)
 	utils.Check(err)
 	InstallNodeTypes(project.PackageManager)
-	tmpl.CopyTemplate("vite.config.ts.tmpl", "vite.config.ts")
+
+	//tmpl.CopyTemplate("vite.config.ts.tmpl", "vite.config.ts")
+	err = PatchViteConfig()
+	utils.Check(err)
 
 	//making the src-arlo dir
 	dirName := "src-backend"
