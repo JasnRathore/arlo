@@ -32,6 +32,20 @@ Install Arlo using Go's package manager:
 ```bash
 go install github.com/JasnRathore/arlo@latest
 ```
+linux users make sure you have this in your shell profile
+```bash
+export PATH="$(go env GOPATH)/bin:$PATH"
+```
+like in
+```bash
+~/.profile
+```
+```bash
+~/.bashrc
+```
+```bash
+~/.zshrc
+```
 
 ## Getting Started
 
