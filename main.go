@@ -6,21 +6,31 @@ import (
 	"os"
 )
 
+const version = "v0.0.4"
+
 func main() {
 	size := len(os.Args)
 	if size < 2 {
-		fmt.Println("Docs")
+		fmt.Println("No Commands Passed")
+		fmt.Println("use \narlo help or arlo -h\nTo get a list of commands")
 		return
 	}
 	args := os.Args[1:]
 	switch args[0] {
-	case "init":
+	case "init", "-i":
 		cmd.InitProject()
-	case "dev":
+	case "dev", "-d":
 		cmd.RunDevBuild()
-	case "build":
+	case "build", "-b":
 		cmd.RunProdBuild()
+	case "help", "-h":
+		cmd.PrintHelp()
+	case "version", "-v":
+		fmt.Println(version)
+	case "upgrade", "-u":
+		cmd.UpgradeArlo()
 	default:
-		fmt.Println("Invalid Arguments")
+		fmt.Println("Invalid Commands")
+		fmt.Println("use \narlo help or arlo -h\nTo get a list of commands")
 	}
 }
