@@ -12,16 +12,16 @@ import (
 	"strings"
 )
 
-type state int
+type state1 int
 
 const (
-	stateInput state = iota
+	stateInput state1 = iota
 	stateMenu
 	stateDone
 )
 
 type model struct {
-	state     state
+	state     state1
 	input     string
 	selection int
 	options   []string
@@ -91,6 +91,71 @@ func (m model) View() string {
 		}
 	case stateDone:
 		b.WriteString(fmt.Sprintf("You typed: %s\n", m.input))
+		b.WriteString(fmt.Sprintf("You selected: %s\n", m.options[m.selection]))
+	}
+	return b.String()
+}
+
+// State for model2
+type state2 int
+
+const (
+	state2Menu state2 = iota
+	state2Done
+)
+
+type model2 struct {
+	state     state2
+	selection int
+	options   []string
+	done      bool
+}
+
+func (m model2) Init() tea.Cmd {
+	return nil
+}
+
+func (m model2) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch m.state {
+	case state2Menu:
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.Type {
+			case tea.KeyUp:
+				if m.selection > 0 {
+					m.selection--
+				}
+			case tea.KeyDown:
+				if m.selection < len(m.options)-1 {
+					m.selection++
+				}
+			case tea.KeyEnter:
+				m.state = state2Done
+				m.done = true
+				return m, tea.Quit
+			case tea.KeyCtrlC:
+				return m, tea.Quit
+			}
+		}
+	case state2Done:
+		// No further interaction after selection
+	}
+	return m, nil
+}
+
+func (m model2) View() string {
+	var b strings.Builder
+	switch m.state {
+	case state2Menu:
+		b.WriteString("Choose an option:\n\n")
+		for i, opt := range m.options {
+			cursor := " "
+			if i == m.selection {
+				cursor = ">"
+			}
+			b.WriteString(fmt.Sprintf("%s %s\n", cursor, opt))
+		}
+	case state2Done:
 		b.WriteString(fmt.Sprintf("You selected: %s\n", m.options[m.selection]))
 	}
 	return b.String()
@@ -200,6 +265,24 @@ func ui() (models.ProjectDetails, error) {
 	return models.ProjectDetails{}, err
 }
 
+func ui2() (string, error) {
+	m := model2{
+		state:   state2Menu,
+		options: []string{"Standard", "Gin"},
+	}
+
+	prog := tea.NewProgram(m)
+	finalModel, err := prog.Run()
+	utils.Check(err)
+
+	m = finalModel.(model2) // type assert to get final state
+
+	if m.done {
+		return m.options[m.selection], nil
+	}
+	return "", err
+}
+
 // checkCommand returns true if the command is available in the system PATH
 func checkCommand(name string) bool {
 	_, err := exec.LookPath(name)
@@ -243,7 +326,6 @@ func CheckDependencies(jsTool string) bool {
 }
 
 func PatchViteConfig() error {
-	// 1. Detect config file
 	files := []string{"vite.config.ts", "vite.config.js"}
 	var configFile string
 	for _, f := range files {
@@ -256,52 +338,93 @@ func PatchViteConfig() error {
 		return fmt.Errorf("No vite.config.js or vite.config.ts found")
 	}
 
-	// 2. Read config file
 	data, err := os.ReadFile(configFile)
 	if err != nil {
 		return err
 	}
 	content := string(data)
 
-	// 3. Check if 'server' already exists
-	serverRegex := regexp.MustCompile(`server\s*:\s*\{`)
-	if serverRegex.MatchString(content) {
-		fmt.Println("Server block already exists. Please update it manually if needed.")
-		return nil
+	// Ensure loadEnv is imported
+	importRegex := regexp.MustCompile(`import\s+\{\s*defineConfig\s*\}\s+from\s+['"]vite['"]`)
+	content = importRegex.ReplaceAllString(content, "import { defineConfig, loadEnv } from 'vite'")
+
+	// If already function-based, just patch the proxy target
+	if strings.Contains(content, "defineConfig(({ mode })") {
+		content = strings.ReplaceAll(content, "target: process.env.VITE_API_URL", "target: env.VITE_API_URL")
+		return os.WriteFile(configFile, []byte(content), 0644)
 	}
 
-	// 4. Prepare the server block to insert
-	serverBlock := `server: {
-    proxy: {
-      '/api': {
-        target: process.env.VITE_API_URL,
-        changeOrigin: true,
-        secure: false,
+	// Convert object-based config to function-based
+	defineConfigRegex := regexp.MustCompile(`export\s+default\s+defineConfig\s*\(\s*\{`)
+	loc := defineConfigRegex.FindStringIndex(content)
+	if loc == nil {
+		return fmt.Errorf("Could not find export default defineConfig({ in config file")
+	}
+
+	// Find the closing }) at the end
+	lastClosing := strings.LastIndex(content, "})")
+	if lastClosing == -1 {
+		return fmt.Errorf("Could not find closing }) in config file")
+	}
+
+	// Extract the config object
+	configBody := content[loc[1]:lastClosing]
+	configBody = strings.TrimSpace(configBody)
+	if strings.HasPrefix(configBody, "{") {
+		configBody = configBody[1:]
+	}
+	if strings.HasSuffix(configBody, "}") {
+		configBody = configBody[:len(configBody)-1]
+	}
+
+	serverProxy := `
+    server: {
+      proxy: {
+        '/api': {
+          target: env.VITE_API_URL,
+          changeOrigin: true,
+          rewrite: path => path.replace(/^\/api/, ''),
+        }
       }
     }
-  },`
+  }
+	`
+	// Build the new function-based config
+	newConfig := `
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  return {
+	` + configBody + serverProxy + `
+})
+`
+	// Replace the old config with the new one
+	content = content[:loc[0]] + newConfig
 
-	// 5. Find the plugins property and insert after it, else just after the opening {
-	pluginsRegex := regexp.MustCompile(`(plugins\s*:\s*\[[^\]]*\],?)`)
-	loc := pluginsRegex.FindStringIndex(content)
-	if loc != nil {
-		// Insert after plugins
-		insertPos := loc[1]
-		content = content[:insertPos] + "\n  " + serverBlock + content[insertPos:]
-	} else {
-		// Insert after first opening '{' of defineConfig({
-		defineConfigRegex := regexp.MustCompile(`defineConfig\s*\(\s*\{`)
-		loc2 := defineConfigRegex.FindStringIndex(content)
-		if loc2 != nil {
-			insertPos := loc2[1]
-			content = content[:insertPos] + "\n  " + serverBlock + content[insertPos:]
-		} else {
-			return fmt.Errorf("Could not find defineConfig({ in config file")
-		}
-	}
-
-	// 6. Write back the file
 	return os.WriteFile(configFile, []byte(content), 0644)
+}
+
+func CreateBackend(framework string, data models.TemplateData) {
+	switch framework {
+	case "Standard":
+		tmpl.GenerateTemplate("std.main.go.tmpl", "main.go", data)
+		err := os.Mkdir("app", 0755)
+		utils.Check(err)
+		tmpl.GenerateTemplate("std.app.go.tmpl", "app/app.go", data)
+		tmpl.GenerateTemplate("std.build.go.tmpl", "build.go", data)
+		return
+	case "Gin":
+		tmpl.GenerateTemplate("gin.main.go.tmpl", "main.go", data)
+		err := os.Mkdir("app", 0755)
+		utils.Check(err)
+		tmpl.GenerateTemplate("gin.app.go.tmpl", "app/app.go", data)
+		tmpl.GenerateTemplate("gin.build.go.tmpl", "build.go", data)
+		err = utils.RunCommand("go", "get", "github.com/gin-gonic/gin")
+		utils.Check(err)
+		return
+	default:
+		fmt.Println("Invalid Option")
+
+	}
 }
 
 func InitProject() {
@@ -318,6 +441,8 @@ func InitProject() {
 		fmt.Println("\n❌ Some dependencies are missing.")
 		return
 	}
+
+	goFramework, err := ui2()
 
 	CreateFrontend(project.PackageManager, project.Name)
 
@@ -353,10 +478,8 @@ func InitProject() {
 	data := models.TemplateData{
 		Title: strings.ToLower(project.Name),
 	}
-	tmpl.GenerateTemplate("main.go.tmpl", "main.go", data)
-	err = os.Mkdir("app", 0755)
-	tmpl.GenerateTemplate("app.go.tmpl", "app/app.go", data)
-	tmpl.GenerateTemplate("build.go.tmpl", "build.go", data)
+
+	CreateBackend(goFramework, data)
 
 	fmt.Println("cd", strings.ToLower(project.Name))
 	fmt.Println(GetFrontendDependenciesCommand(project.PackageManager))

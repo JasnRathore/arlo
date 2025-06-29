@@ -1,0 +1,13 @@
+package app
+
+import (
+	"github.com/gin-gonic/gin"
+)
+
+func App() *gin.Engine {
+	r := gin.New()
+	r.GET("/", func(c *gin.Context) {
+		c.String(200, "Hello from the Go web app!")
+	})
+	return r
+}

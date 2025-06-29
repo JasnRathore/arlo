@@ -1,0 +1,119 @@
+//go:build ignore
+
+package main
+
+import (
+	"embed"
+	"fmt"
+	"log"
+	"net"
+	"path"
+	"path/filepath"
+	"strings"
+
+	a "{{.Title}}/app"
+	"github.com/gin-gonic/gin"
+)
+
+//go:embed dist/*
+var content embed.FS
+
+func findAvailablePort(startPort int) (int, error) {
+	for port := startPort; port < 65535; port++ {
+		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		if err == nil {
+			ln.Close()
+			return port, nil
+		}
+	}
+	return 0, fmt.Errorf("could not find an available port")
+}
+
+func hasFileExtension(p string) bool {
+	return filepath.Ext(p) != ""
+}
+
+func detectContentType(file string) string {
+	switch ext := strings.ToLower(path.Ext(file)); ext {
+	case ".html":
+		return "text/html"
+	case ".css":
+		return "text/css"
+	case ".js":
+		return "application/javascript"
+	case ".json":
+		return "application/json"
+	case ".png":
+		return "image/png"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".svg":
+		return "image/svg+xml"
+	case ".ico":
+		return "image/x-icon"
+	default:
+		return "application/octet-stream"
+	}
+}
+
+func serveStatic(c *gin.Context) {
+	file := c.Request.URL.Path
+
+	// Ensure leading slash
+	if !strings.HasPrefix(file, "/") {
+		file = "/" + file
+	}
+
+	// If no file extension or root, serve index.html (SPA fallback)
+	if file == "/" || !hasFileExtension(file) {
+		file = "/index.html"
+	}
+
+	fsPath := "dist" + file
+	log.Printf("Static request: %s (resolved to %s)", c.Request.URL.Path, fsPath)
+
+	data, err := content.ReadFile(fsPath)
+	if err != nil {
+		log.Printf("Static file not found: %s", fsPath)
+		c.String(404, "404 Not Found: %s", file)
+		return
+	}
+
+	// Set Content-Type header
+	c.Header("Content-Type", detectContentType(file))
+
+	// Set Cache-Control for assets (not for index.html)
+	if file != "/index.html" {
+		c.Header("Cache-Control", "public, max-age=31536000, immutable")
+	}
+
+	// Serve file
+	c.Writer.WriteHeader(200)
+	c.Writer.Write(data)
+}
+
+func main() {
+	port, err := findAvailablePort(8080)
+	if err != nil {
+		log.Fatalf("Error finding available port: %v", err)
+	}
+
+	mainRouter := gin.Default()
+
+	// Mount your API handler under /api
+	appEngine := a.App()
+	mainRouter.Any("/api/*path", func(c *gin.Context) {
+		originalPath := c.Request.URL.Path
+		c.Request.URL.Path = strings.TrimPrefix(originalPath, "/api")
+		appEngine.HandleContext(c)
+		c.Request.URL.Path = originalPath
+	})
+
+	// Serve static frontend (SPA) for all other routes
+	mainRouter.NoRoute(serveStatic)
+
+	log.Printf("Production server running at http://localhost:%d", port)
+	if err := mainRouter.Run(fmt.Sprintf(":%d", port)); err != nil {
+		log.Fatalf("Error starting server: %v", err)
+	}
+}
