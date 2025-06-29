@@ -85,7 +85,8 @@ your-project/
 │   ├── build.go          # Production build configuration
 │   └── .air.toml         # Hot-reload configuration
 ├── arlo.config.json      # Project configuration
-└── .env                  # Environment variables```
+└── .env                  # Environment variables
+```
 
 ## Development Workflow
 
