@@ -47,17 +47,14 @@ Add this line to one of these files:
 ## Getting Started
 
 ### Commands
+
     init     (-i)    initialize a new arlo project
     dev      (-d)    starts your development environment
     build    (-b)    builds the final binary for distribution
     upgrade  (-u)    upgrades arlo to the latest version
     version  (-v)    prints app version
-    help     (-h)    prints all the available commands init     (-i)    initialize a new arlo project
-    dev      (-d)    starts your development environment
-    build    (-b)    builds the final binary for distribution
-    upgrade  (-u)    upgrades arlo to the latest version
-    version  (-v)    prints app version
     help     (-h)    prints all the available commands
+
 ### Creating Your First Project
 
 Initialize a new Arlo project with the interactive setup:
