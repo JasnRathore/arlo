@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-const version = "v0.0.5"
+const version = "v0.0.6"
 
 func main() {
 	size := len(os.Args)

@@ -441,7 +441,8 @@ func InitProject() {
 		fmt.Println("\n❌ Some dependencies are missing.")
 		return
 	}
-
+	fmt.Println()
+	fmt.Println("Select Go API framework:")
 	goFramework, err := ui2()
 
 	CreateFrontend(project.PackageManager, project.Name)

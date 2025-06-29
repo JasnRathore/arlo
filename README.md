@@ -27,28 +27,37 @@ Before getting started, ensure you have these tools installed:
 
 ## Installation
 
-Install Arlo using Go's package manager:
+Get Arlo up and running with Go's package manager:
 
 ```bash
 go install github.com/JasnRathore/arlo@latest
 ```
-linux users make sure you have this in your shell profile
+
+**Linux users**: Add Go's binary path to your shell profile:
+
 ```bash
 export PATH="$(go env GOPATH)/bin:$PATH"
 ```
-like in
-```bash
-~/.profile
-```
-```bash
-~/.bashrc
-```
-```bash
-~/.zshrc
-```
+
+Add this line to one of these files:
+- `~/.profile`
+- `~/.bashrc` 
+- `~/.zshrc`
 
 ## Getting Started
 
+### Commands
+    init     (-i)    initialize a new arlo project
+    dev      (-d)    starts your development environment
+    build    (-b)    builds the final binary for distribution
+    upgrade  (-u)    upgrades arlo to the latest version
+    version  (-v)    prints app version
+    help     (-h)    prints all the available commands init     (-i)    initialize a new arlo project
+    dev      (-d)    starts your development environment
+    build    (-b)    builds the final binary for distribution
+    upgrade  (-u)    upgrades arlo to the latest version
+    version  (-v)    prints app version
+    help     (-h)    prints all the available commands
 ### Creating Your First Project
 
 Initialize a new Arlo project with the interactive setup:
@@ -61,8 +70,9 @@ This command will guide you through:
 1. **Project naming** - Choose a descriptive name for your application
 2. **Package manager selection** - Pick your preferred JavaScript package manager
 3. **Dependency verification** - Automatically check that all required tools are installed
-4. **Project scaffolding** - Generate the complete project structure
-5. **Dependency installation** - Set up all necessary packages
+4. **Framework Choice** - Select between standard Go HTTP handlers or Gin framework
+5. **Project scaffolding** - Generate the complete project structure
+6. **Dependency installation** - Set up all necessary packages
 
 ### Project Structure
 
@@ -77,8 +87,8 @@ your-project/
 │   ├── main.go           # Development entry point
 │   ├── build.go          # Production build configuration
 │   └── .air.toml         # Hot-reload configuration
-└── arlo.config.json      # Project configuration
-```
+├── arlo.config.json      # Project configuration
+└── .env                  # Environment variables```
 
 ## Development Workflow
 
@@ -123,6 +133,31 @@ func App() http.Handler {
     })
     
     return mux
+}
+
+func App() *gin.Engine {
+	r := gin.New()
+	
+	// Simple API endpoint
+	r.GET("/users", func(c *gin.Context) {
+		users := []string{"Alice", "Bob", "Charlie"}
+		c.JSON(200, users)
+	})
+	
+	// Handle different HTTP methods
+	r.GET("/data", func(c *gin.Context) {
+		// Handle GET request
+	})
+	
+	r.POST("/data", func(c *gin.Context) {
+		// Handle POST request
+	})
+	
+	r.GET("/", func(c *gin.Context) {
+		c.String(200, "Hello from the Go web app!")
+	})
+	
+	return r
 }
 ```
 
@@ -200,22 +235,6 @@ Simply copy the executable to any compatible system and run it - no installation
 
 ## Configuration
 
-### Application Settings
-
-Customize your application in the `app.go` file:
-
-```go
-func setupServer() {
-    port := findAvailablePort(8080)
-    
-    mux := http.NewServeMux()
-    mux.Handle("/api/", http.StripPrefix("/api", App()))
-    
-    log.Printf("Server running on port %d", port)
-    http.ListenAndServe(fmt.Sprintf(":%d", port), mux)
-}
-```
-
 ### Environment Variables
 
 Configure your frontend to communicate with the backend using environment variables:
@@ -249,6 +268,27 @@ mux.HandleFunc("/process", func(w http.ResponseWriter, r *http.Request) {
         "result":   result,
     })
 })
+
+or
+
+r.POST("/process", func(c *gin.Context) {
+		// Get the uploaded file
+		file, header, err := c.Request.FormFile("document")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read file"})
+			return
+		}
+		defer file.Close()
+		
+		// Process the file (using your existing processDocument function)
+		result := processDocument(file)
+		
+		// Return response
+		c.JSON(http.StatusOK, gin.H{
+			"filename": header.Filename,
+			"result":   result,
+		})
+	})
 ```
 
 ```javascript
@@ -276,6 +316,18 @@ mux.HandleFunc("/system/stats", func(w http.ResponseWriter, r *http.Request) {
     }
     json.NewEncoder(w).Encode(stats)
 })
+
+or 
+
+r.GET("/system/stats", func(c *gin.Context) {
+		stats := gin.H{  // gin.H is a shortcut for map[string]interface{}
+			"memory":    getMemoryUsage(),
+			"cpu":       getCPUUsage(),
+			"processes": getRunningProcesses(),
+		}
+		c.JSON(http.StatusOK, stats)  // Automatically encodes to JSON
+	})
+
 ```
 
 ```javascript
@@ -311,6 +363,44 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
     
     w.Header().Set("Content-Type", detectContentType(file))
     w.Write(data)
+}
+
+or 
+
+func serveStatic(c *gin.Context) {
+	file := c.Request.URL.Path
+
+	// Ensure leading slash
+	if !strings.HasPrefix(file, "/") {
+		file = "/" + file
+	}
+
+	// If no file extension or root, serve index.html (SPA fallback)
+	if file == "/" || !hasFileExtension(file) {
+		file = "/index.html"
+	}
+
+	fsPath := "dist" + file
+	log.Printf("Static request: %s (resolved to %s)", c.Request.URL.Path, fsPath)
+
+	data, err := content.ReadFile(fsPath)
+	if err != nil {
+		log.Printf("Static file not found: %s", fsPath)
+		c.String(404, "404 Not Found: %s", file)
+		return
+	}
+
+	// Set Content-Type header
+	c.Header("Content-Type", detectContentType(file))
+
+	// Set Cache-Control for assets (not for index.html)
+	if file != "/index.html" {
+		c.Header("Cache-Control", "public, max-age=31536000, immutable")
+	}
+
+	// Serve file
+	c.Writer.WriteHeader(200)
+	c.Writer.Write(data)
 }
 ```
 
