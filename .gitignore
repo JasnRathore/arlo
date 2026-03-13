@@ -2,4 +2,4 @@ arlo.exe
 tmp/
 /node_modules
 target/
-ArloSetup.exe
+ArloSetup@*.exe
