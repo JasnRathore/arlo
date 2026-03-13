@@ -6,12 +6,12 @@
 ; -------------------------------
 ; App Info
 !define APP_NAME "Arlo"
-!define APP_VERSION "0.1.0"
+!define APP_VERSION "0.1.1"
 !define APP_EXE "arlo.exe"
 !define APP_DIR "target"
 
 Name "${APP_NAME}"
-OutFile "${APP_NAME}Setup.exe"
+OutFile "${APP_NAME}Setup@${APP_VERSION}.exe"
 
 InstallDir "$PROGRAMFILES\${APP_NAME}"
 RequestExecutionLevel admin
